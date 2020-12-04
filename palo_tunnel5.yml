@@ -1,0 +1,128 @@
+- name: Create a Paloalto Firewall Tunnel
+  hosts: ALL
+  connection: local
+  gather_facts: False
+  
+  collections:
+     - paloaltonetworks.panos
+
+  tasks:
+  - name: Load Variables
+    include_vars: vars.yml
+  
+  - name: get facts
+    xls_to_facts:
+        #src: ./simple-ha-pair.xlsx
+        src: ./b2btunnelconfiguration.xlsx
+    register: "palo"
+    tags:
+        - debug  
+        
+  - name: debug
+    debug:
+        msg: "debug the sheet {{ palo }}"
+      
+
+
+  - name: Configure Tunnel Interface
+    panos_tunnel:
+      provider: '{{provider}}'
+      state: 'present'
+      if_name: '{{ item.if_name }}'
+      #ip: ['{{ 10.1.1.1/32 }}']
+      comment: '{{ item.comment }}'
+      zone_name: 'vpn'
+      vr_name: 'VR1'
+      commit: False
+    
+    loop: '{{ spreadsheet_tunnelinterface }}'
+        
+  - name: Create a Static Route towards tunnel
+    panos_static_route:
+      provider: '{{ provider }}'
+      state: 'present'
+      name: '{{ item.name }}'  # Update the Name
+      destination: '{{ item.destination }}' # Update the destination IP address
+      nexthop_type: 'none'
+      interface: '{{ item.interface }}' # Update the interface as per the tunnel
+      virtual_router: 'VR1'
+    
+    loop: '{{ spreadsheet_static_route }}'
+        
+  - name: Add IKE Crypto profile
+    panos_ike_crypto_profile:
+      provider: '{{provider}}'
+      state: 'present'
+      name: '{{ item.name }}'  ## Update with the name
+      dh_group: ['{{ item.dh_group }}']
+      authentication: ['{{ item.authentication }}']
+      encryption: ['{{ item.encryption }}']
+      lifetime_hours: '{{ item.lifetime_hours }}'
+      commit: False
+    
+    loop: '{{ spreadsheet_ike_crypto_profile }}'
+    
+  - name: Add IKE Gateway
+    panos_ike_gateway:
+      provider: '{{provider}}'
+      state: 'present'
+      name: '{{ item.name }}'  ## Update with the name
+      version: 'ikev1'  ## Update if that is required
+      interface: 'ethernet1/2'
+      local_ip_address: '206.227.128.1/24'
+      local_ip_address_type: 'ip'
+      #local_id_type: 'ipaddr'
+      #local_id_value:
+      #peer_id_type: 'ipaddr'
+      #peer_id_value:
+      enable_passive_mode: False
+      enable_nat_traversal: False
+      dead_peer_detection_interval: '5'
+      dead_peer_detection_retry: '5'
+      enable_dead_peer_detection: True
+      peer_ip_value: '{{ item.peer_ip_value }}'
+      pre_shared_key: '{{ item.pre_shared_key }}'
+      ikev1_exchange_mode: 'main'
+      ikev1_crypto_profile: '{{ item.ikev1_crypto_profile }}'
+      commit: False
+      
+    
+    loop: '{{ spreadsheet_ike_gateway }}'
+       
+  - name: Add the IPSEC Crypto
+    panos_ipsec_profile:
+      provider: '{{ provider }}'
+      state: 'present'
+      name: '{{ item.name }}'
+      esp_authentication: ['{{ item.esp_authentication }}']
+      esp_encryption: ['{{ item.esp_encryption }}']
+      dh_group: '{{ item.dh_group }}'
+      #dh_group: 'no-pfs'
+      lifetime_seconds: '{{ item.lifetime_seconds }}'
+      commit: False
+    
+    loop: '{{ spreadsheet_ipsec_profile }}'
+       
+  - name: Add IPSec tunnel to IKE gateway profile
+    panos_ipsec_tunnel:
+      provider: '{{ provider }}'
+      name: '{{ item.name }}'
+      tunnel_interface: '{{ item.tunnel_interface }}'
+      ak_ike_gateway: '{{ item.ak_ike_gateway }}'
+      ak_ipsec_crypto_profile: '{{ item.ak_ipsec_crypto_profile }}'
+      state: 'present'
+      commit: False  
+     
+    loop: '{{ spreadsheet_ipsec_tunnel }}'
+
+        
+  - name: Add IPSec IPv4 Proxy ID
+    panos_ipsec_ipv4_proxyid:
+      provider: '{{ provider }}'
+      name: '{{ item.name }}'
+      tunnel_name: '{{ item.tunnel_name }}'
+      local: '{{ item.local }}'
+      remote: '{{ item.remote }}'
+      commit: False
+     
+    loop: '{{ spreadsheet_ipsec_ipv4_proxyid }}'

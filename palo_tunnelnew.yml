@@ -1,0 +1,37 @@
+- name: Create a Paloalto Firewall Tunnel
+  hosts: [ALL]
+  connection: local
+  gather_facts: False
+  
+  collections:
+     - paloaltonetworks.panos
+
+  tasks:
+   - name: Load Variables
+     include_vars: vars.yml
+  
+   - name: get facts
+     xls_to_facts:
+       src: ./b2btunnelconfiguration.xlsx
+     register: "newf5"
+     tags:
+            - debug
+
+   - name: debug
+     debug:
+        msg: "debug the sheet {{ newf5 }}"
+   
+   - name: Configure Tunnel Interface
+     panos_tunnel:
+      provider: '{{provider}}'
+       #ip_address: '{{ inventory_hostname }}'
+      # api_key: LUFRPT1WRm5WYmFSRWhCMU1rSnp3aWhZM1lILzI2bzA9SkFla3ZuZ3RKNHdnOFl6bkx5TzFJelA0RGZzTFNvUC90VVQwUG9SdDhob2VHQzd5NVNTd1haeTljSUpRc2thNA==
+        
+      state: 'present'
+      if_name: '{{ item.if_name }}'
+      #ip: ['{{ 10.1.1.1/32 }}']
+      comment: '{{ item.comment }}'
+      zone_name: 'vpn'
+      vr_name: 'VR1'
+      commit: False
+     loop: '{{ spreadsheet_tunnelinterface }}'

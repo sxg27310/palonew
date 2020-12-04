@@ -1,0 +1,5 @@
+provider:
+    ip_address: '{{ inventory_hostname }}'
+    #api_key: LUFRPT1WRm5WYmFSRWhCMU1rSnp3aWhZM1lILzI2bzA9SkFla3ZuZ3RKNHdnOFl6bkx5TzFJelA0RGZzTFNvUC90VVQwUG9SdDhob2VHQzd5NVNTd1haeTljSUpRc2thNA==
+    username: "admin"
+    password: "Cisco123"
